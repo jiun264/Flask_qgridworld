@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gridworld</title>
+    <style>
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            border: 1px solid black;
+            width: 500px;
+            height: 500px;
+        }
+
+        .cell {
+            width: calc(100% / {{ n }});
+            height: calc(100% / {{ n }});
+            border: 1px solid black;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .start {
+            background-color: green;
+        }
+
+        .end {
+            background-color: red;
+        }
+
+        .obstacle {
+            background-color: grey;
+        }
+
+        .path {
+            background-color: rgb(4, 0, 255);
+            border-radius: 50%;
+            /* 設定邊框半徑為50%以呈現圓形 */
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+       $(document).ready(function () {
+    // Set up the grid
+    var n = {{ n }};
+    var randcount = 0;
+    var grid = $('<div class="grid"></div>');
+    for (var i = 0; i < n; i++) {
+        for (var j = 0; j < n; j++) {
+            var cell = $('<div class="cell"></div>');
+            cell.attr('data-row', i);
+            cell.attr('data-col', j);
+            if (Math.random() < 0.1 && randcount < 3) { // 隨機生成障礙物
+                cell.addClass('obstacle');
+                randcount++;
+            }
+            grid.append(cell);
+        }
+    }
+    $('#gridworld').append(grid);
+
+
+    // Set up start and end points
+    var start = null;
+    var end = null;
+    $('.cell').click(function () {
+        var row = $(this).data('row');
+        var col = $(this).data('col');
+        if ($(this).hasClass('start')) {
+            $(this).removeClass('start');
+            start = null;
+        } else if ($(this).hasClass('end')) {
+            $(this).removeClass('end');
+            end = null;
+        } else if ($(this).hasClass('obstacle')) {
+            // Do nothing
+        } else if (start === null) {
+            $(this).addClass('start');
+            start = [row, col];
+        } else if (end === null) {
+            $(this).addClass('end');
+            end = [row, col];
+        }
+    });
+
+    // Send POST request to solve gridworld problem using Q-learning
+    $('#solve').click(function () {
+        event.preventDefault();
+        var start = $('.start').first().data('row') + ',' + $('.start').first().data('col');
+        var end = $('.end').first().data('row') + ',' + $('.end').first().data('col');
+        var obstacles = $('.obstacle').map(function () {
+            return $(this).data('row') + ',' + $(this).data('col');
+        }).get();
+        var grid = [];
+        $('.cell').each(function () {
+            var row = $(this).data('row');
+            var col = $(this).data('col');
+            var isObstacle = $(this).hasClass('obstacle') ? 1 : 0;
+            grid.push([row, col, isObstacle]);
+        });
+
+        $.ajax({
+            type: 'POST',
+            url: '/solve',
+            data: JSON.stringify({
+                'start': start,
+                'end': end,
+                'obstacles': obstacles,
+                'grid': grid
+            }),
+            contentType: 'application/json;charset=UTF-8',
+            success: function (response) {
+                console.log(response);
+                // TODO: Display path on the grid
+                var path = response.path;
+                for (var i = 0; i < path.length; i++) {
+                    var row = path[i][0];
+                    var col = path[i][1];
+                    $('.cell[data-row="' + row + '"][data-col="' + col + '"]').addClass('path');
+                }
+            }
+        });
+    });
+});
+
+    </script>
+</head>
+
+<body>
+    <h1>{{ n }} x {{ n }} Gridworld</h1>
+    <div id="gridworld"></div>
+    <button id="solve">Solve</button>
+</body>
+
+</html>
